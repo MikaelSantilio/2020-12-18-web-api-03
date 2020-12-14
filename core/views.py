@@ -207,3 +207,21 @@ class CommentDetailView(views.APIView):
         comment.delete()
 
         return Response(data={'detail': 'Comment deleted with success'}, status=status.HTTP_200_OK)
+
+
+class ReportView(views.APIView):
+
+    def get(self, request, format=None):
+        data = []
+
+        for profile in Profile.objects.all():
+            data.append(
+                {
+                    'pk': profile.pk,
+                    'name': profile.name,
+                    'total_posts': Post.objects.filter(user=profile).count(),
+                    'total_comments': Comment.objects.filter(post__user=profile).count(),
+                }
+            )
+
+        return Response(data=data, status=status.HTTP_200_OK)

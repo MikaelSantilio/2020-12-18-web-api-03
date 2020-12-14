@@ -5,6 +5,7 @@ app_name = 'core'
 
 urlpatterns = [
     path('endpoints/', views.EndpointsView.as_view(), name='endpoints_list'),
+    path('reports/', views.ReportView.as_view(), name='reports_list'),
     path('profiles/', views.ProfileView.as_view(), name='profiles_list'),
     path('profiles/<int:pk>', views.ProfileDetailView.as_view(), name='profiles_detail'),
     path('profile-posts/', views.PostView.as_view(), name='post_list'),
