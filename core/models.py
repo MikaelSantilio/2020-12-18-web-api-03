@@ -1,18 +1,9 @@
 from django.db import models
 
-
-
-
-
-
-
-
-
-
-
 # • Profile: id, name, email, address { street, suite, city, zipcode } ;
 # • Comment: id, name, email, body, postId;
 # • Post: id, title, body, userId.
+
 
 class Profile(models.Model):
     name = models.CharField(max_length=128)
@@ -21,11 +12,17 @@ class Profile(models.Model):
     city = models.CharField(max_length=64)
     zipcode = models.CharField(max_length=9)
 
+    def __str__(self):
+        return self.name
+
 
 class Post(models.Model):
     title = models.CharField(max_length=32)
     body = models.CharField(max_length=256)
     user = models.ForeignKey(Profile, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return self.title
 
 
 class Comment(models.Model):
@@ -33,3 +30,6 @@ class Comment(models.Model):
     email = models.EmailField()
     body = models.CharField(max_length=256)
     post = models.ForeignKey(Post, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f'Comment {self.name}'
