@@ -4,6 +4,7 @@ from core import views
 app_name = 'core'
 
 urlpatterns = [
+    path('import/<str:filename>', views.ImportJsonView.as_view(), name='import_json'),
     path('endpoints/', views.EndpointsView.as_view(), name='endpoints_list'),
     path('reports/', views.ReportView.as_view(), name='reports_list'),
     path('profiles/', views.ProfileView.as_view(), name='profiles_list'),

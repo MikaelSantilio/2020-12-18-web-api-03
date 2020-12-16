@@ -10,15 +10,15 @@ class Profile(models.Model):
     email = models.EmailField()
     street = models.CharField(max_length=128)
     city = models.CharField(max_length=64)
-    zipcode = models.CharField(max_length=9)
+    zipcode = models.CharField(max_length=12)
 
     def __str__(self):
         return self.name
 
 
 class Post(models.Model):
-    title = models.CharField(max_length=32)
-    body = models.CharField(max_length=256)
+    title = models.CharField(max_length=128)
+    body = models.TextField()
     user = models.ForeignKey(Profile, on_delete=models.CASCADE)
 
     def __str__(self):
@@ -28,7 +28,7 @@ class Post(models.Model):
 class Comment(models.Model):
     name = models.CharField(max_length=128)
     email = models.EmailField()
-    body = models.CharField(max_length=256)
+    body = models.TextField()
     post = models.ForeignKey(Post, on_delete=models.CASCADE)
 
     def __str__(self):
