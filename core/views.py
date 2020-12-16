@@ -11,103 +11,13 @@ from django.core.exceptions import ValidationError
 import json
 import pdb
 from rest_framework.schemas.openapi import SchemaGenerator
-
-def save_json_array(data):
-
-    cleaned_users = []
-    id_users = {}
-
-    for obj in data["users"]:
-        obj["street"] = obj["address"]["street"]
-        obj["city"] = obj["address"]["city"]
-        obj["zipcode"] = obj["address"]["zipcode"]
-
-        id_users[obj["id"]] = obj["id"]
-
-        cleaned_users.append(
-            Profile(
-                name=obj["name"],
-                email=obj["email"],
-                street=obj["street"],
-                city=obj["city"],
-                zipcode=obj["zipcode"]))
-
-    response_users = Profile.objects.bulk_create(cleaned_users, ignore_conflicts=True)
-    for i in range(len(response_users)):
-        try:
-            response_users[i].full_clean()
-        except ValidationError:
-            response_users[i] = None
-
-    response_users = Profile.objects.order_by('-pk')[:len(response_users)]
-    response_users = list(reversed(response_users))
-
-    i = 0
-    for _id in id_users:
-        id_users[_id] = response_users[i]
-        i += 1
-
-    cleaned_posts = []
-    id_posts = {}
-
-    for obj in data["posts"]:
-        if not id_users[obj["userId"]]:
-            continue
-
-        obj["user"] = id_users[obj["userId"]]
-
-        id_posts[obj["id"]] = obj["id"]
-
-        cleaned_posts.append(
-            Post(
-                title=obj["title"],
-                body=obj["body"],
-                user=obj["user"]))
-
-    response_posts = Post.objects.bulk_create(cleaned_posts, ignore_conflicts=True)
-    for i in range(len(response_posts)):
-        try:
-            response_posts[i].full_clean()
-        except ValidationError:
-            response_posts[i] = None
-
-    response_posts = Post.objects.order_by('-pk')[:len(response_posts)]
-    response_posts = list(reversed(response_posts))
-
-    # pdb.set_trace()
-    i = 0
-    for _id in id_posts:
-        id_posts[_id] = response_posts[i]
-        i += 1
-
-    cleaned_comments = []
-
-    for obj in data["comments"]:
-        if not id_posts[obj["postId"]]:
-            continue
-
-        obj["post"] = id_posts[obj["postId"]]
-
-        cleaned_comments.append(
-            Comment(
-                name=obj["name"],
-                email=obj["email"],
-                body=obj["body"],
-                post=obj["post"]))
-
-    response_comments = Comment.objects.bulk_create(cleaned_comments, ignore_conflicts=True) 
-
-    return {
-        "users": response_users,
-        "comments": response_comments,
-        "posts": response_posts
-    }
+from core.utils import save_json_db
 
 
 class ImportJsonView(views.APIView):
     parser_classes = [FileUploadParser]
 
-    def post(self, request, filename='request.json', format=None):
+    def post(self, request, filename, format=None):
         if 'file' not in request.data:
             return Response({'detail': 'None JSON file sended'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -117,13 +27,16 @@ class ImportJsonView(views.APIView):
             data = json.load(file)
 
         # pdb.set_trace()
-        r1 = save_json_array(data)
+        print('Start\n')
+        print('Len Profiles', Profile.objects.count())
+        print('Len Post', Post.objects.count())
+        print('Len Comment', Comment.objects.count())
+        r1 = save_json_db(data)
 
         # pdb.set_trace()
-        print('Start\n')
-        print(len(r1["users"]))
-        print(len(r1["posts"]))
-        print(len(r1["comments"]))
+        print('Len Profiles', len(r1["users"]))
+        print('Len Post', len(r1["posts"]))
+        print('Len Comment', len(r1["comments"]))
         print('###################\n')
 
         return Response(status=status.HTTP_201_CREATED)
@@ -142,7 +55,6 @@ class EndpointsView(views.APIView):
 
 
 class ProfileView(views.APIView):
-    parser_classes = [FileUploadParser]
 
     def get(self, request, format=None):
 
@@ -151,14 +63,7 @@ class ProfileView(views.APIView):
 
         return Response(data=serializer.data, status=status.HTTP_200_OK)
 
-    def post(self, request, filename='request.json', format=None):
-        if 'file' not in request.data:
-            return Response({'detail': 'None JSON file sended'}, status=status.HTTP_400_BAD_REQUEST)
-
-        file_obj = request.data['file']
-
-        with file_obj.open() as file:
-            data = json.load(file)
+    def post(self, request, format=None):
 
         serializer = ProfileSerializer(data=request.data)
         if serializer.is_valid():
@@ -167,12 +72,8 @@ class ProfileView(views.APIView):
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        # fs = FileSystemStorage()
-        # filename = fs.save(file_obj.name, file_obj)
-
 
 class ProfileDetailView(views.APIView):
-    parser_classes = [FileUploadParser]
 
     def get(self, request, pk, format=None):
 
@@ -181,17 +82,7 @@ class ProfileDetailView(views.APIView):
 
         return Response(data=data, status=status.HTTP_200_OK)
 
-    def put(self, request, pk, filename='request.json', format=None):
-        if 'file' not in request.data:
-            return Response({'detail': 'None JSON file sended'}, status=status.HTTP_400_BAD_REQUEST)
-
-        file_obj = request.data['file']
-
-        with file_obj.open() as file:
-            data = json.load(file)
-
-        # fs = FileSystemStorage()
-        # filename = fs.save(file_obj.name, file_obj)
+    def put(self, request, pk, format=None):
 
         serializer = ProfileSerializer(data=request.data)
         if serializer.is_valid():
@@ -271,16 +162,9 @@ class CommentView(views.APIView):
 
         return Response(data=comments_serializer.data, status=status.HTTP_200_OK)
 
-    def post(self, request, post_id, filename='request.json', format=None):
-        if 'file' not in request.data:
-            return Response({'detail': 'None JSON file sended'}, status=status.HTTP_400_BAD_REQUEST)
+    def post(self, request, post_id, format=None):
 
-        file_obj = request.data['file']
-
-        with file_obj.open() as file:
-            data = json.load(file)
-
-        serializer = CommentSerializer(data=data)
+        serializer = CommentSerializer(data=request.data)
         if serializer.is_valid():
             post = get_object_or_404(Post, id=post_id)
             serializer.post = post
@@ -301,16 +185,9 @@ class CommentDetailView(views.APIView):
             return Response(data=comment_serializer.data, status=status.HTTP_200_OK)
         return Response(status=status.HTTP_404_NOT_FOUND)
 
-    def put(self, request,  post_id, comment_id, filename='request.json', format=None):
-        if 'file' not in request.data:
-            return Response({'detail': 'None JSON file sended'}, status=status.HTTP_400_BAD_REQUEST)
+    def put(self, request,  post_id, comment_id, format=None):
 
-        file_obj = request.data['file']
-
-        with file_obj.open() as file:
-            data = json.load(file)
-
-        serializer = CommentSerializer(data=data)
+        serializer = CommentSerializer(data=request.data)
         if serializer.is_valid():
             post = get_object_or_404(Post, id=post_id)
             serializer.post = post
