@@ -9,7 +9,6 @@ from core.serializers import ProfileSerializer, PostSerializer, CommentSerialize
 from core.models import Profile, Post, Comment
 from django.core.exceptions import ValidationError
 import json
-import pdb
 from rest_framework.schemas.openapi import SchemaGenerator
 from core.utils import save_json_db
 
@@ -19,25 +18,14 @@ class ImportJsonView(views.APIView):
 
     def post(self, request, filename, format=None):
         if 'file' not in request.data:
-            return Response({'detail': 'None JSON file sended'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': 'No JSON files sent'}, status=status.HTTP_400_BAD_REQUEST)
 
         file_obj = request.data['file']
 
         with file_obj.open() as file:
             data = json.load(file)
 
-        # pdb.set_trace()
-        print('Start\n')
-        print('Len Profiles', Profile.objects.count())
-        print('Len Post', Post.objects.count())
-        print('Len Comment', Comment.objects.count())
         r1 = save_json_db(data)
-
-        # pdb.set_trace()
-        print('Len Profiles', len(r1["users"]))
-        print('Len Post', len(r1["posts"]))
-        print('Len Comment', len(r1["comments"]))
-        print('###################\n')
 
         return Response(status=status.HTTP_201_CREATED)
 
@@ -78,11 +66,13 @@ class ProfileDetailView(views.APIView):
     def get(self, request, pk, format=None):
 
         user = get_object_or_404(Profile, pk=pk)
-        data = ProfileSerializer(data=user)
+        serializer = ProfileSerializer(user)
 
-        return Response(data=data, status=status.HTTP_200_OK)
+        return Response(data=serializer.data, status=status.HTTP_200_OK)
 
     def put(self, request, pk, format=None):
+
+        user = get_object_or_404(Profile, pk=pk)
 
         serializer = ProfileSerializer(data=request.data)
         if serializer.is_valid():
@@ -104,9 +94,14 @@ class PostView(views.APIView):
     def get(self, request, format=None):
 
         posts = Post.objects.all()
-        serializer = PostSerializer(posts, many=True)
+        data = []
+        for user in Profile.objects.all():
+            posts = Post.objects.filter(user=user)
+            serializer_posts = PostSerializer(posts, many=True)
+            serializer_user = ProfileSerializer(user)
+            data.append({'user': serializer_user.data, 'posts': serializer_posts.data})
 
-        return Response(data=serializer.data, status=status.HTTP_200_OK)
+        return Response(data=data, status=status.HTTP_200_OK)
 
 
 class ProfilePostsView(views.APIView):
@@ -129,10 +124,12 @@ class PostCommentView(views.APIView):
             comments_serializer = CommentSerializer(comments, many=True)
 
             post_serializer = PostSerializer(post)
-            post_data = post_serializer.data
-            post_data['comments'] = comments_serializer.data
 
-            posts_data.append(post_data)
+            posts_data.append(
+                {
+                    'post': post_serializer.data,
+                    'comments': comments_serializer.data
+                })
 
         return Response(data=posts_data, status=status.HTTP_200_OK)
 
@@ -147,10 +144,9 @@ class PostCommentDetailView(views.APIView):
         comments_serializer = CommentSerializer(comments, many=True)
 
         post_serializer = PostSerializer(post)
-        post_data = post_serializer.data
-        post_data['comments'] = comments_serializer.data
+        data = {'post': post_serializer.data, 'comments': comments_serializer.data}
 
-        return Response(data=post_data, status=status.HTTP_200_OK)
+        return Response(data=data, status=status.HTTP_200_OK)
 
 
 class CommentView(views.APIView):
@@ -164,10 +160,13 @@ class CommentView(views.APIView):
 
     def post(self, request, post_id, format=None):
 
-        serializer = CommentSerializer(data=request.data)
+        post = get_object_or_404(Post, id=post_id)
+        request_data = request.data
+        request_data['post'] = post.id
+
+        serializer = CommentSerializer(data=request_data)
+        # print(serializer.post)
         if serializer.is_valid():
-            post = get_object_or_404(Post, id=post_id)
-            serializer.post = post
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
