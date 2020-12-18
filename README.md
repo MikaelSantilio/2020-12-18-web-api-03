@@ -4,6 +4,16 @@
 
 [Insomnia_2020-12-18.json](https://github.com/MikaelSantilio/2020-12-18-web-api-03/blob/master/Insomnia_2020-12-18.json)
 
+
+## Import db.json
+
+```bash
+$ curl --request POST \
+  --url http://127.0.0.1:8000/import/db.json \
+  --data-binary "path_to_db.json" \
+  --header 'Content-Type: application/json'
+```
+
 ## endpoints
 
 ```json
