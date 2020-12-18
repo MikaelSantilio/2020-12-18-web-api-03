@@ -1,13 +1,10 @@
-from django.shortcuts import render
 from rest_framework import views
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.parsers import FileUploadParser
-from django.core.files.storage import FileSystemStorage
 from core.serializers import ProfileSerializer, PostSerializer, CommentSerializer
 from core.models import Profile, Post, Comment
-from django.core.exceptions import ValidationError
 import json
 from rest_framework.schemas.openapi import SchemaGenerator
 from core.utils import save_json_db
@@ -74,7 +71,7 @@ class ProfileDetailView(views.APIView):
 
         user = get_object_or_404(Profile, pk=pk)
 
-        serializer = ProfileSerializer(data=request.data)
+        serializer = ProfileSerializer(user, data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
@@ -179,17 +176,21 @@ class CommentDetailView(views.APIView):
 
         comment = Comment.objects.filter(post__id=post_id, id=comment_id)
         if comment:
-            comment_serializer = CommentSerializer(comment)
+            comment_serializer = CommentSerializer(comment[0])
 
             return Response(data=comment_serializer.data, status=status.HTTP_200_OK)
         return Response(status=status.HTTP_404_NOT_FOUND)
 
     def put(self, request,  post_id, comment_id, format=None):
+        post = get_object_or_404(Post, id=post_id)
+        comment = get_object_or_404(Comment, id=comment_id)
 
-        serializer = CommentSerializer(data=request.data)
+        request_data = request.data
+        request_data['post'] = post.id
+
+        serializer = CommentSerializer(comment, data=request.data)
+
         if serializer.is_valid():
-            post = get_object_or_404(Post, id=post_id)
-            serializer.post = post
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
